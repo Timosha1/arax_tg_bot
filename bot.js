@@ -18,32 +18,81 @@ const shops = [
   { name: "13: 20", lat: 40.180022, lon: 44.511872, yandexId: "245019164323" },
 ];
 
-// ================== Продукты ==================
+// ================== Рецепты ==================
+const basicRecepie =   {
+  name: "Как готовить коктейли с АРАКС",
+  description: `✨ Одна бутылка АРАКС = 3 коктейля
+  <b>Базовый рецепт</b>
+  40 мл любого алкоголя (джин, ром, текила, водка, бурбон — что вам ближе)
+  150 мл АРАКС (любого вкуса)
+  Лёд — щедро, чтобы напиток был свежим
+  Украшение — по вашему вкусу: долька цитруса, веточка мяты, ягода, специя
+  Просто смешайте всё в большом бокале, украсьте и наслаждайтесь.`, 
+
+  photo_url: "https://drive.google.com/uc?export=download&id=1H05dIACPl_DruQwtdA5rpPFFS0RWl9bS",
+}
+
 const products = [  
   {
-    name: "Фотосессия",
+    id: "strawberry_paprika",
+    name: "🍓 Клубника с паприкой",
     description:
-      "Это моя профессиональная фотосессия на современный фотоаппарат моего прадеда! Моя красота теперь доступна в 30-ти пикселях!",
+      " Клубника–паприка + текила или мескаль → пикантный мексиканский акцент. Также отлично с пивом в виде радлера.",
     photo_url:
       "https://drive.google.com/uc?export=download&id=19NlVbqJ0uD5ZuJzgzSxOQYo0IK26IX9a",
   },
   {
-    name: "Я на отдыхе",
-    description: "Это я приехала в геленджик позагорать",
+    id: "mandarin_cardamom",
+    name: "🍊 Мандарин с кардамоном",
+    description: " Мандарин–кардамон + джин → лёгкий цитрусово-пряный коктейль. С пивом тоже супер!",
     photo_url:
       "https://drive.google.com/uc?export=download&id=1r-Q4jwRrxvGZdNXhKDDPFZXlQDzGIjKc",
   },
   {
-    name: "Любовь",
+    id: "lavender_jasmine",
+    name: "🌸 Лаванда, жасмин и гандпаудер ",
     description:
-      "Это моя тайная любовь - боевик из сосисочных повстанцев. Причина моих бессонных ночей😭",
+      "Лаванда–жасмин–ганпаудер + водка или джин → чистый, цветочно-чайный вкус",
     photo_url:
       "https://drive.google.com/uc?export=download&id=1av9zLKX5x-7XmWTLL3nTbEE9SGpxXY_4",
   },
   {
-    name: "Чистейшая родниковая вода",
+    id: "melon_mint",
+    name: "🍈 Дыня с мятой",
     description:
-      "Вода прямиком из недр земли, прошла какие-то проверки",
+      "Дыня–мята + светлый ром → летний тропический бриз. Можно с темным ромом чтобы сделать коктейль более пряным и согревающим",
+    photo_url:
+      "https://drive.google.com/uc?export=download&id=1xhs76oLEJaubgwupk0JgAJG1_ykrbxZk",
+  },
+  {
+    id: "cola_plum",
+    name: "🥤 Кола со сливой",
+    description:
+      "Кола–слива + бурбон или ром → насыщенный и уютный микс",
+    photo_url:
+      "https://drive.google.com/uc?export=download&id=1xhs76oLEJaubgwupk0JgAJG1_ykrbxZk",
+  },
+  {
+    id: "orange_grapefruit",
+    name: "🍊 Горький апельсин и красный грейпфрут",
+    description:
+      "Горький апельсин–красный грейпфрут + джин или водка → яркий цитрусовый твист",
+    photo_url:
+      "https://drive.google.com/uc?export=download&id=1xhs76oLEJaubgwupk0JgAJG1_ykrbxZk",
+  },
+  {
+    id: "rose_dahongpao",
+    name: "🌹 Роза, дахунпао и бергамот",
+    description:
+      "Роза–дахунпао–бергамот + ром → чувственный восточный аромат",
+    photo_url:
+      "https://drive.google.com/uc?export=download&id=1xhs76oLEJaubgwupk0JgAJG1_ykrbxZk",
+  },
+  {
+    id: "cherry_pie",
+    name: "🍒 Вишневый пирог",
+    description:
+      "Вишнёвый пирог + бурбон или ром → сладкий десертный коктейль. Можно попробовать с вином",
     photo_url:
       "https://drive.google.com/uc?export=download&id=1xhs76oLEJaubgwupk0JgAJG1_ykrbxZk",
   },
@@ -70,7 +119,7 @@ const locationKeyboard = Markup.keyboard([
 // ================== Главное меню ==================
 const mainKeyboard = Markup.keyboard([
   [{ text: "📍 Показать точки продажи поблизости", request_location: true  }],
-  [{ text: "Показать кринж" }]
+  [{ text: "Рецепты с ARAX💩" }]
 ]).resize();
 
 
@@ -91,14 +140,58 @@ bot.hears("📍 Где купить ARAX?", (ctx) =>
     locationKeyboard
   )
 );
-bot.hears("Показать кринж", async (ctx) => {
-  for (const product of products) {
-    await ctx.replyWithPhoto(product.photo_url, {
-      caption: `<b>${product.name}</b>\n${product.description}`,
+
+
+// bot.hears("Рецепты с ARAX💩", async (ctx) => {
+//   await ctx.replyWithPhoto(basicRecepie.photo_url, {
+//     caption: `<b>${basicRecepie.name}</b>\n${basicRecepie.description}`,
+//     parse_mode: "HTML",
+//   });
+// });
+
+bot.hears("Рецепты с ARAX💩", async (ctx) => {
+  // 1. Создаем кнопки для каждого вкуса из массива products
+  const flavorButtons = products.map(product =>
+      Markup.button.callback(product.name, `recipe_${product.id}`)
+  );
+
+  // 2. Собираем клавиатуру, располагая по 2 кнопки в ряд
+  const keyboard = Markup.inlineKeyboard(
+      Array.from({ length: Math.ceil(flavorButtons.length / 2) }, (_, i) =>
+          flavorButtons.slice(i * 2, i * 2 + 2)
+      )
+  );
+
+  // 3. Отправляем фото с базовым рецептом И прикрепляем клавиатуру
+  await ctx.replyWithPhoto(basicRecepie.photo_url, {
+      caption: `<b>${basicRecepie.name}</b>\n${basicRecepie.description}`,
       parse_mode: "HTML",
-    });
-  }
+      //reply_markup: keyboard
+      ...keyboard
+  });
 });
+
+// ================== ОБРАБОТЧИК НАЖАТИЙ НА INLINE-КНОПКИ ==================
+bot.action(/recipe_(.+)/, async (ctx) => {
+  // 1. Получаем название продукта из данных кнопки 
+  const productId  = ctx.match[1];
+
+  // 2. Находим продукт в нашем массиве по имени
+  const product = products.find(p => p.id === productId);
+
+  // 3. Если нашли, отправляем информацию о нем в новом сообщении
+  if (product) {
+      await ctx.replyWithPhoto(product.photo_url, {
+          caption: `<b>${product.name}</b>\n${product.description}`,
+          parse_mode: "HTML",
+      });
+  }
+
+  // 4. Сообщаем Телеграму, что мы обработали нажатие.
+  // У пользователя пропадет значок "загрузки" на кнопке.
+  await ctx.answerCbQuery();
+});
+
 
 bot.command("show_locations", (ctx) =>
   ctx.reply(
@@ -146,7 +239,7 @@ bot.on(message("location"), async (ctx) => {
 
 
 
-bot.command("show_cringe", async (ctx) => {
+bot.command("show_lemonades", async (ctx) => {
   for (const product of products) {
     await ctx.replyWithPhoto(product.photo_url, {
       caption: `<b>${product.name}</b>\n${product.description}`,

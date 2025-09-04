@@ -1,5 +1,6 @@
 {
   "name": "arax_bot_js",
+  "type": "module",
   "version": "1.0.0",
   "description": "Telegram бот для поиска ближайших магазинов ARAX",
   "main": "bot.js",

@@ -61,6 +61,11 @@ const mainKeyboard = Markup.keyboard([
   [{ text: "🛒 Сделать заказ" }],
 ]).resize();
 
+// Клавиатура отмены оформления заказа
+const cancelOrderKeyboard = Markup.keyboard([
+  [{ text: "❌ Отменить оформление" }]
+]).resize();
+
 // Клавиатура для управления корзиной
 const cartKeyboard = Markup.inlineKeyboard([
   Markup.button.callback("✅ Оформить заказ", "checkout"),
@@ -133,23 +138,53 @@ const orderScene = new Scenes.WizardScene(
   'orderScene',
   // Шаг 1: Спрашиваем имя
   async (ctx) => {
-      await ctx.reply('Как вас зовут?');
+      await ctx.reply('Как вас зовут? (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 2: Спрашиваем номер телефона
   async (ctx) => {
+      if (!ctx.message || !ctx.message.text) {
+          await ctx.reply('Пожалуйста, введите текст:');
+          return; // Остаемся на том же шаге
+      }
+      // Отмена оформления
+      const text = ctx.message.text.trim();
+      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
+          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
+          return ctx.scene.leave();
+      }
       ctx.wizard.state.name = ctx.message.text; // Сохраняем имя
-      await ctx.reply('Укажите номер телефона:');
+      await ctx.reply('Укажите номер телефона: (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 3: Спрашиваем адрес
   async (ctx) => {
+      if (!ctx.message || !ctx.message.text) {
+          await ctx.reply('Пожалуйста, введите номер телефона:');
+          return; // Остаемся на том же шаге
+      }
+      // Отмена оформления
+      const text = ctx.message.text.trim();
+      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
+          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
+          return ctx.scene.leave();
+      }
       ctx.wizard.state.phone = ctx.message.text; // Сохраняем телефон
-      await ctx.reply('Укажите адрес доставки:');
+      await ctx.reply('Укажите адрес доставки: (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 4: Подтверждение и отправка заказа
   async (ctx) => {
+      if (!ctx.message || !ctx.message.text) {
+          await ctx.reply('Пожалуйста, введите адрес доставки:');
+          return; // Остаемся на том же шаге
+      }
+      // Отмена оформления
+      const text = ctx.message.text.trim();
+      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
+          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
+          return ctx.scene.leave();
+      }
       ctx.wizard.state.address = ctx.message.text; // Сохраняем адрес
       const userId = ctx.from.id;
       const cart = userCarts[userId];
@@ -300,11 +335,6 @@ bot.action("checkout", async (ctx) => {
   // Начинаем диалог с пользователем для сбора данных
   await ctx.scene.enter('orderScene');
 });
-
-// Возврат в меню
-// bot.action("back_to_menu", (ctx) => {
-//   ctx.editMessageText("Вы вернулись в главное меню.", mainKeyboard);
-// });
 
 // Обработчик кнопки "Назад" - возврат к ассортименту продуктов
 bot.action("back_to_products", async (ctx) => {

@@ -25,29 +25,52 @@ function haversine(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+function escapeMarkdown(text) {
+  if (!text) return '';
+  return text.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
+}
+
 // Функция для отображения корзины
 function showCart(ctx) {
   const userId = ctx.from.id;
   const cart = userCarts[userId];
 
   if (!cart || cart.length === 0) {
-      return ctx.reply("Ваша корзина пуста.", mainKeyboard); // Возвращаем в главное меню
+    return ctx.reply("Ваша корзина пуста.", mainKeyboard);
   }
 
   let cartMessage = "🛒 *Ваша корзина:*\n\n";
+  let total = 0;
+
   cart.forEach(item => {
-      cartMessage += `▪️ ${item.name} \- *${item.quantity} шт.*\n`;
+    const itemTotal = item.price * item.quantity;
+    total += itemTotal;
+    cartMessage += `▪️ ${escapeMarkdown(item.name)} — ${item.quantity} шт. × ${item.price} AMD = *${itemTotal} AMD*\n`;
   });
 
-  // Отправляем или редактируем сообщение
+  cartMessage += `\n💰 *Итого:* ${total} AMD`;
+
   if (ctx.callbackQuery) {
-      // Если это результат нажатия inline-кнопки, редактируем сообщение
-      ctx.editMessageText(cartMessage, { parse_mode: "Markdown", ...cartKeyboard });
+    try {
+      ctx.editMessageText(cartMessage, { 
+        parse_mode: "Markdown", 
+        reply_markup: cartKeyboard.reply_markup 
+      });
+    } catch (e) {
+      if (e.description?.includes("message is not modified")) {
+        return; // игнорируем
+      }
+      console.error("Ошибка при редактировании корзины:", e);
+    }
   } else {
-      // Иначе отправляем новое
-      ctx.reply(cartMessage, { parse_mode: "Markdown", ...cartKeyboard });
+    ctx.reply(cartMessage, { 
+      parse_mode: "Markdown", 
+      reply_markup: cartKeyboard.reply_markup 
+    });
   }
 }
+
+
 
 // ================== Клавиатура для геопозиции ==================
 const locationKeyboard = Markup.keyboard([
@@ -61,10 +84,16 @@ const mainKeyboard = Markup.keyboard([
   [{ text: "🛒 Сделать заказ" }],
 ]).resize();
 
-// Инлайн-клавиатура отмены оформления заказа
-const cancelOrderInlineKeyboard = Markup.inlineKeyboard([
-  [Markup.button.callback("❌ Отменить оформление", "cancel_order")]
-]);
+// // Инлайн-клавиатура отмены оформления заказа
+// const cancelOrderInlineKeyboard = Markup.inlineKeyboard([
+//   [Markup.button.callback("❌ Отменить оформление", "cancel_order")]
+// ]);
+
+// клавиатура отмены оформления заказа
+const cancelOrderKeyboard = Markup.keyboard([
+  [{text: "❌ Отменить оформление"}]
+]).resize();
+
 
 // Клавиатура для управления корзиной
 const cartKeyboard = Markup.inlineKeyboard([
@@ -98,38 +127,34 @@ const quantityScene = new Scenes.WizardScene(
       return ctx.wizard.next();
   },
   // Шаг 2: Добавляем в корзину и возвращаемся к выбору товаров
+  // Шаг 2: Добавляем в корзину и возвращаемся к выбору товаров
   async (ctx) => {
-      const quantity = parseInt(ctx.message.text);
-      const productId = ctx.wizard.state.productId;
-      const product = products.find(p => p.id === productId);
-      const userId = ctx.from.id;
+    const quantity = parseInt(ctx.message.text);
+    const productId = ctx.wizard.state.productId;
+    const product = products.find(p => p.id === productId);
+    const userId = ctx.from.id;
 
-      if (isNaN(quantity) || quantity <= 0) {
-          await ctx.reply('Пожалуйста, введите корректное количество (число больше 0):');
-          return; // Остаемся на том же шаге
-      }
+    if (isNaN(quantity) || quantity <= 0 || quantity > 100) {
+      await ctx.reply('Пожалуйста, введите корректное количество (от 1 до 100):');
+      return; // остаёмся на шаге
+    }
 
-      // Инициализируем корзину, если ее нет
-      if (!userCarts[userId]) {
-          userCarts[userId] = [];
-      }
+    if (!userCarts[userId]) {
+      userCarts[userId] = [];
+    }
 
-      // Проверяем, есть ли уже такой товар в корзине
-      const cartItem = userCarts[userId].find(item => item.id === productId);
+    const cartItem = userCarts[userId].find(item => item.id === productId);
+    if (cartItem) {
+      cartItem.quantity += quantity;
+    } else {
+      userCarts[userId].push({ ...product, quantity });
+    }
 
-      if (cartItem) {
-          cartItem.quantity += quantity; // Увеличиваем количество
-      } else {
-          userCarts[userId].push({ ...product, quantity: quantity }); // Добавляем новый товар
-      }
+    await ctx.reply(`✅ "${escapeMarkdown(product.name)}" (${quantity} шт.) добавлен в корзину!`, { parse_mode: "Markdown" });
 
-      await ctx.reply(`✅ "${product.name}" (${quantity} шт.) добавлен в корзину!`);
+    showCart(ctx);
 
-      // Показываем корзину
-      showCart(ctx);
-
-      // Завершаем сцену
-      return ctx.scene.leave();
+    return ctx.scene.leave();
   }
 );
 
@@ -138,23 +163,17 @@ const orderScene = new Scenes.WizardScene(
   'orderScene',
   // Шаг 1: Спрашиваем имя
   async (ctx) => {
-      await ctx.reply('Как вас зовут?', cancelOrderInlineKeyboard);
+      await ctx.reply('Как вас зовут?', cancelOrderKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 2: Спрашиваем номер телефона
   async (ctx) => {
       if (!ctx.message || !ctx.message.text) {
-          await ctx.reply('Пожалуйста, введите текст:');
+          await ctx.reply('Пожалуйста, введите ваше имя:');
           return; // Остаемся на том же шаге
       }
-      // Отмена оформления
-      const text = ctx.message.text.trim();
-      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
-          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
-          return ctx.scene.leave();
-      }
       ctx.wizard.state.name = ctx.message.text; // Сохраняем имя
-      await ctx.reply('Укажите номер телефона:', cancelOrderInlineKeyboard);
+      await ctx.reply('Укажите номер телефона:');
       return ctx.wizard.next();
   },
   // Шаг 3: Спрашиваем адрес
@@ -163,70 +182,63 @@ const orderScene = new Scenes.WizardScene(
           await ctx.reply('Пожалуйста, введите номер телефона:');
           return; // Остаемся на том же шаге
       }
-      // Отмена оформления
-      const text = ctx.message.text.trim();
-      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
-          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
-          return ctx.scene.leave();
-      }
       ctx.wizard.state.phone = ctx.message.text; // Сохраняем телефон
-      await ctx.reply('Укажите адрес доставки: ', cancelOrderInlineKeyboard);
+      await ctx.reply('Укажите адрес доставки:');
       return ctx.wizard.next();
   },
-  // Шаг 4: Подтверждение и отправка заказа
+// Шаг 4: Подтверждение заказа
   async (ctx) => {
-      if (!ctx.message || !ctx.message.text) {
-          await ctx.reply('Пожалуйста, введите адрес доставки:');
-          return; // Остаемся на том же шаге
-      }
-      // Отмена оформления
-      const text = ctx.message.text.trim();
-      if (/^отмена$/i.test(text) || /^❌ Отменить оформление$/i.test(text)) {
-          await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
-          return ctx.scene.leave();
-      }
-      ctx.wizard.state.address = ctx.message.text; // Сохраняем адрес
-      const userId = ctx.from.id;
-      const cart = userCarts[userId];
-      const { name, phone, address } = ctx.wizard.state;
+    if (!ctx.message || !ctx.message.text) {
+      await ctx.reply('Пожалуйста, введите адрес доставки:');
+      return;
+    }
 
-      // Формируем текст заказа
-      let orderText = `*🔥 Новый заказ! 🔥*\n\n`;
-      orderText += `*Клиент:* ${name}\n`;
-      orderText += `*Телефон:* ${phone}\n`;
-      orderText += `*Адрес:* ${address}\n`;
-      
-      // Добавляем Telegram username если есть
-      if (ctx.from.username) {
-          const safeUsername = ctx.from.username.replace(/_/g, "\\_");
-          orderText += `*Telegram username:* @${safeUsername}\n`;
-      } else {
-          orderText += `*Telegram ID:* ${ctx.from.id}\n`;
-      }
-      
-      orderText += `\n*Состав заказа:*\n`;
-      cart.forEach(item => {
-          orderText += `- ${item.name}: ${item.quantity} шт.\n`;
-      });
+    ctx.wizard.state.address = ctx.message.text;
+    const userId = ctx.from.id;
+    const cart = userCarts[userId];
+    const { name, phone, address } = ctx.wizard.state;
 
-      // ID чата, куда будут приходить заказы (это может быть ваш ID или ID группы)
-      const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID; // <-- Укажите ID в .env файле
-      if(!ADMIN_CHAT_ID) throw new Error("Не задан ADMIN_CHAT_ID");
-
-
-      // Отправляем заказ администратору
-      await bot.telegram.sendMessage(ADMIN_CHAT_ID, orderText, { parse_mode: 'Markdown' });
-
-      // Сообщаем пользователю об успехе
-      await ctx.reply('✅ Спасибо! Ваш заказ принят. Мы скоро с вами свяжемся.');
-
-      // Очищаем корзину
-      userCarts[userId] = [];
-
-      // Завершаем сцену
+    if (!cart || cart.length === 0) {
+      await ctx.reply("❌ Корзина пуста, оформление отменено.", mainKeyboard);
       return ctx.scene.leave();
+    }
+    // Сохраняем в session для confirm_order
+    ctx.session.orderData = { name, phone, address };
+
+    let summary = `Проверьте заказ:\n\n`;
+    summary += `Имя: ${escapeMarkdown(name)}\n`;
+    summary += `Телефон: ${escapeMarkdown(phone)}\n`;
+    summary += `Адрес: ${escapeMarkdown(address)}\n\n`;
+    summary += `🛒 Состав:\n`;
+
+    let total = 0;
+    cart.forEach(item => {
+      const itemTotal = item.price * item.quantity;
+      total += itemTotal;
+      summary += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
+    });
+    summary += `\n💰 *Итого:* ${total} AMD`;
+
+
+    // cart.forEach(item => {
+    //   summary += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт.\n`;
+    // });
+
+    const confirmKeyboard = Markup.inlineKeyboard([
+      [Markup.button.callback("✅ Подтвердить заказ", "confirm_order")],
+      [Markup.button.callback("❌ Отменить оформление", "cancel_order")]
+    ]);
+
+    await ctx.reply(summary, { parse_mode: "Markdown", reply_markup: confirmKeyboard.reply_markup });
+    return ctx.scene.leave();
   }
 );
+
+// единый обработчик отмены для всей сцены
+orderScene.hears(/^❌ Отменить оформление$/i, async (ctx) => {
+  await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
+  return ctx.scene.leave();
+});
 
 // Создаем менеджер сцен и регистрируем наши сцены
 const stage = new Scenes.Stage([quantityScene, orderScene]);
@@ -315,6 +327,7 @@ bot.action(/select_product_(.+)/, async (ctx) => {
 
   // Запускаем сцену запроса количества с передачей productId
   await ctx.scene.enter('quantityScene', { productId: productId });
+  await ctx.answerCbQuery();
 });
 
 // Очистка корзины
@@ -363,17 +376,6 @@ bot.action("back_to_menu", async (ctx) => {
   await ctx.reply("Вы в главном меню 👇", mainKeyboard);
 });
 
-// Обработка инлайн-отмены оформления
-bot.action("cancel_order", async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
-  // Если пользователь в сцене — выходим
-  if (ctx.scene && ctx.scene.current) {
-    await ctx.scene.leave();
-  }
-});
-
-
 // Обработчик для кнопки "Назад"
 bot.action("back_to_basic_recipe", async (ctx) => {
   // Получаем клавиатуру со всеми продуктами
@@ -389,6 +391,52 @@ bot.action("back_to_basic_recipe", async (ctx) => {
 
   await ctx.answerCbQuery();
 });
+
+bot.action("confirm_order", async (ctx) => {
+  const userId = ctx.from.id;
+  const cart = userCarts[userId];
+  if (!cart || cart.length === 0) {
+    return ctx.answerCbQuery("Корзина пуста!");
+  }
+
+  // Собираем данные из сцены 
+  const { name, phone, address } = ctx.session?.orderData || {};
+
+  let orderText = `*🔥 Новый заказ! 🔥*\n\n`;
+  orderText += `*Клиент:* ${escapeMarkdown(name)}\n`;
+  orderText += `*Телефон:* ${escapeMarkdown(phone)}\n`;
+  orderText += `*Адрес:* ${escapeMarkdown(address)}\n`;
+
+  if (ctx.from.username) {
+    orderText += `*Telegram:* @${escapeMarkdown(ctx.from.username)}\n`;
+  } else {
+    orderText += `*Telegram ID:* ${ctx.from.id}\n`;
+  }
+
+  orderText += `\n*Состав заказа:*\n`;
+  let total = 0;
+  cart.forEach(item => {
+    const itemTotal = item.price * item.quantity;
+    total += itemTotal;
+    orderText += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
+  });
+
+  orderText += `\n*💰 Итого:* ${total} AMD`;
+
+  // cart.forEach(item => {
+  //   orderText += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт.\n`;
+  // });
+
+  await bot.telegram.sendMessage(ADMIN_CHAT_ID, orderText, { parse_mode: "Markdown" });
+  await ctx.reply("✅ Спасибо! Ваш заказ принят. Мы скоро с вами свяжемся.", mainKeyboard);
+
+
+  userCarts[userId] = [];
+
+  await ctx.answerCbQuery();
+
+});
+
 
 bot.command("show_locations", (ctx) =>
   ctx.reply(

@@ -61,10 +61,10 @@ const mainKeyboard = Markup.keyboard([
   [{ text: "🛒 Сделать заказ" }],
 ]).resize();
 
-// Клавиатура отмены оформления заказа
-const cancelOrderKeyboard = Markup.keyboard([
-  [{ text: "❌ Отменить оформление" }]
-]).resize();
+// Инлайн-клавиатура отмены оформления заказа
+const cancelOrderInlineKeyboard = Markup.inlineKeyboard([
+  [Markup.button.callback("❌ Отменить оформление", "cancel_order")]
+]);
 
 // Клавиатура для управления корзиной
 const cartKeyboard = Markup.inlineKeyboard([
@@ -138,7 +138,7 @@ const orderScene = new Scenes.WizardScene(
   'orderScene',
   // Шаг 1: Спрашиваем имя
   async (ctx) => {
-      await ctx.reply('Как вас зовут? (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
+      await ctx.reply('Как вас зовут?', cancelOrderInlineKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 2: Спрашиваем номер телефона
@@ -154,7 +154,7 @@ const orderScene = new Scenes.WizardScene(
           return ctx.scene.leave();
       }
       ctx.wizard.state.name = ctx.message.text; // Сохраняем имя
-      await ctx.reply('Укажите номер телефона: (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
+      await ctx.reply('Укажите номер телефона:', cancelOrderInlineKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 3: Спрашиваем адрес
@@ -170,7 +170,7 @@ const orderScene = new Scenes.WizardScene(
           return ctx.scene.leave();
       }
       ctx.wizard.state.phone = ctx.message.text; // Сохраняем телефон
-      await ctx.reply('Укажите адрес доставки: (или нажмите «❌ Отменить оформление»)', cancelOrderKeyboard);
+      await ctx.reply('Укажите адрес доставки: ', cancelOrderInlineKeyboard);
       return ctx.wizard.next();
   },
   // Шаг 4: Подтверждение и отправка заказа
@@ -361,6 +361,16 @@ bot.action("back_to_menu", async (ctx) => {
 
   // 3. Отправляем новое сообщение с клавиатурой главного меню
   await ctx.reply("Вы в главном меню 👇", mainKeyboard);
+});
+
+// Обработка инлайн-отмены оформления
+bot.action("cancel_order", async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.reply('❌ Оформление заказа отменено.', mainKeyboard);
+  // Если пользователь в сцене — выходим
+  if (ctx.scene && ctx.scene.current) {
+    await ctx.scene.leave();
+  }
 });
 
 

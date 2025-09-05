@@ -451,5 +451,15 @@ bot.catch((err, ctx) => {
   }
 });
 
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+// Функция для корректной остановки
+const gracefulStop = (signal) => {
+  console.log(`Получен сигнал ${signal}. Останавливаю бота...`);
+  bot.stop(signal).then(() => {
+    console.log('Бот остановлен. Завершаю процесс.');
+    process.exit(0);
+  });
+};
+
+// Ловим сигналы для корректного завершения
+process.once("SIGINT", () => gracefulStop("SIGINT"));
+process.once("SIGTERM", () => gracefulStop("SIGTERM"));

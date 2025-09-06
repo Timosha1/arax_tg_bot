@@ -25,9 +25,10 @@ function haversine(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function escapeMarkdown(text) {
-  if (!text) return '';
-  return text.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
+function escapeMarkdownV2(text) {
+  return String(text)
+    .replace(/\\/g, '\\\\')                                // сначала экранируем обратный слэш
+    .replace(/([_\*\[\]\(\)~`>#+\-=|{}\.!])/g, '\\$1');    // затем остальные спецсимволы V2
 }
 
 // Функция для отображения корзины
@@ -45,7 +46,7 @@ function showCart(ctx) {
   cart.forEach(item => {
     const itemTotal = item.price * item.quantity;
     total += itemTotal;
-    cartMessage += `▪️ ${escapeMarkdown(item.name)} — ${item.quantity} шт. × ${item.price} AMD = *${itemTotal} AMD*\n`;
+    cartMessage += `▪️ ${escapeMarkdownV2(item.name)} — ${item.quantity} шт. × ${item.price} AMD = *${itemTotal} AMD*\n`;
   });
 
   cartMessage += `\n💰 *Итого:* ${total} AMD`;
@@ -150,7 +151,7 @@ const quantityScene = new Scenes.WizardScene(
       userCarts[userId].push({ ...product, quantity });
     }
 
-    await ctx.reply(`✅ "${escapeMarkdown(product.name)}" (${quantity} шт.) добавлен в корзину!`, { parse_mode: "Markdown" });
+    await ctx.reply(`✅ "${escapeMarkdownV2(product.name)}" (${quantity} шт.) добавлен в корзину!`, { parse_mode: "Markdown" });
 
     showCart(ctx);
 
@@ -206,23 +207,18 @@ const orderScene = new Scenes.WizardScene(
     ctx.session.orderData = { name, phone, address };
 
     let summary = `Проверьте заказ:\n\n`;
-    summary += `Имя: ${escapeMarkdown(name)}\n`;
-    summary += `Телефон: ${escapeMarkdown(phone)}\n`;
-    summary += `Адрес: ${escapeMarkdown(address)}\n\n`;
+    summary += `Имя: ${escapeMarkdownV2(name)}\n`;
+    summary += `Телефон: ${escapeMarkdownV2(phone)}\n`;
+    summary += `Адрес: ${escapeMarkdownV2(address)}\n\n`;
     summary += `🛒 Состав:\n`;
 
     let total = 0;
     cart.forEach(item => {
       const itemTotal = item.price * item.quantity;
       total += itemTotal;
-      summary += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
+      summary += `- ${escapeMarkdownV2(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
     });
     summary += `\n💰 *Итого:* ${total} AMD`;
-
-
-    // cart.forEach(item => {
-    //   summary += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт.\n`;
-    // });
 
     const confirmKeyboard = Markup.inlineKeyboard([
       [Markup.button.callback("✅ Подтвердить заказ", "confirm_order")],
@@ -403,12 +399,12 @@ bot.action("confirm_order", async (ctx) => {
   const { name, phone, address } = ctx.session?.orderData || {};
 
   let orderText = `*🔥 Новый заказ! 🔥*\n\n`;
-  orderText += `*Клиент:* ${escapeMarkdown(name)}\n`;
-  orderText += `*Телефон:* ${escapeMarkdown(phone)}\n`;
-  orderText += `*Адрес:* ${escapeMarkdown(address)}\n`;
+  orderText += `*Клиент:* ${escapeMarkdownV2(name)}\n`;
+  orderText += `*Телефон:* ${escapeMarkdownV2(phone)}\n`;
+  orderText += `*Адрес:* ${escapeMarkdownV2(address)}\n`;
 
   if (ctx.from.username) {
-    orderText += `*Telegram:* @${escapeMarkdown(ctx.from.username)}\n`;
+    orderText += `*Telegram:* @${escapeMarkdownV2(ctx.from.username)}\n`;
   } else {
     orderText += `*Telegram ID:* ${ctx.from.id}\n`;
   }
@@ -418,14 +414,10 @@ bot.action("confirm_order", async (ctx) => {
   cart.forEach(item => {
     const itemTotal = item.price * item.quantity;
     total += itemTotal;
-    orderText += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
+    orderText += `- ${escapeMarkdownV2(item.name)}: ${item.quantity} шт. × ${item.price} AMD = ${itemTotal} AMD\n`;
   });
 
   orderText += `\n*💰 Итого:* ${total} AMD`;
-
-  // cart.forEach(item => {
-  //   orderText += `- ${escapeMarkdown(item.name)}: ${item.quantity} шт.\n`;
-  // });
 
   await bot.telegram.sendMessage(ADMIN_CHAT_ID, orderText, { parse_mode: "Markdown" });
   await ctx.reply("✅ Спасибо! Ваш заказ принят. Мы скоро с вами свяжемся.", mainKeyboard);

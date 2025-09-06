@@ -23,6 +23,15 @@ export const basicRecepie = {
 
 export const products = [
   {
+    id: "melkiy_pizduyk",
+    name: "Криска пиписка",
+    price: 200,
+    description:
+      "Малявка вредная противная и пахнет уксусом постоянно",
+    photo_url:
+      "https://drive.google.com/uc?export=download&id=19NlVbqJ0uD5ZuJzgzSxOQYo0IK26IX9a",
+  },
+  {
     id: "strawberry_paprika",
     name: "🍓 Клубника с паприкой",
     price: 1400,

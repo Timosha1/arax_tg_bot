@@ -6,6 +6,7 @@ export const shops = [
   { name: "Tut. plantstore", lat: 40.184652, lon: 44.510679, yandexId: "100941354140" },
   { name: "Always Tea", lat: 40.174043, lon: 44.512515, yandexId: "182996070769" },
   { name: "13: 20", lat: 40.180022, lon: 44.511872, yandexId: "245019164323" },
+  { name: "Shame bar", lat: 40.178965, lon: 44.506158, yandexId: "155464120141" },
 ];
 
 // ================== Рецепты ==================

@@ -448,7 +448,7 @@ bot.on(message("location"), async (ctx) => {
         dist: haversine(latitude, longitude, shop.lat, shop.lon),
       }))
       .sort((a, b) => a.dist - b.dist)
-      .slice(0, 6);
+      .slice(0, 10);
 
     let text = "📍 Точки продажи:\n\n";
     nearest.forEach((shop, i) => {
